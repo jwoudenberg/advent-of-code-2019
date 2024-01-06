@@ -6,24 +6,30 @@ const prog = [1024]cmdsize;
 pub fn main() !void {
     var program = init_memory(&.{});
     try load_program(&program);
-    program[1] = 12;
-    program[2] = 2;
-    run_program(&program);
-    try print_result(&program);
+    for (0..99) |noun| {
+        for (0..99) |verb| {
+            try attempt(noun, verb, program);
+        }
+    }
+}
+
+fn attempt(noun: cmdsize, verb: cmdsize, original: prog) !void {
+    var program = original;
+    program[1] = noun;
+    program[2] = verb;
+    if (run_program(&program) and program[0] == 19690720) {
+        const stdout_file = std.io.getStdOut().writer();
+        var bw = std.io.bufferedWriter(stdout_file);
+        const stdout = bw.writer();
+        try stdout.print("{d}", .{((100 * noun) + verb)});
+        try bw.flush(); // don't forget to flush!
+    }
 }
 
 fn init_memory(init: []const cmdsize) prog {
     var program: prog = std.mem.zeroes(prog);
     std.mem.copyForwards(cmdsize, &program, init);
     return program;
-}
-
-fn print_result(program: *prog) !void {
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-    try stdout.print("{d}", .{program[0]});
-    try bw.flush(); // don't forget to flush!
 }
 
 fn load_program(program: *prog) !void {
@@ -58,7 +64,7 @@ fn load_program(program: *prog) !void {
     }
 }
 
-fn run_program(program: *prog) void {
+fn run_program(program: *prog) bool {
     var index: u64 = 0;
     while (true) {
         const opcode = program.*[index];
@@ -78,11 +84,11 @@ fn run_program(program: *prog) void {
                 index += 4;
             },
             99 => {
-                return;
+                return true;
             },
             else => {
                 std.debug.print("program encountered unknown opcode: {d}\n", .{opcode});
-                @panic("program encountered unknown opcode");
+                return false;
             },
         }
     }
