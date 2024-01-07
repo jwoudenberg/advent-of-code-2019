@@ -237,6 +237,62 @@ fn resume_program_with_errors(comptime debug: bool, program: *Program) Halt!void
                 program.state = State{ .outputting = param1 };
                 return;
             },
+            5 => {
+                if (debug) {
+                    std.debug.print("instruction: {d} {d} {d}\n", .{
+                        instruction_head,
+                        program.mem[program.index],
+                        program.mem[program.index + 1],
+                    });
+                }
+                const param1 = try read_param(program, &modes);
+                const param2 = try read_param(program, &modes);
+                if (param1 != 0) {
+                    program.index = try to_ucmdsize(program, param2);
+                }
+            },
+            6 => {
+                if (debug) {
+                    std.debug.print("instruction: {d} {d} {d}\n", .{
+                        instruction_head,
+                        program.mem[program.index],
+                        program.mem[program.index + 1],
+                    });
+                }
+                const param1 = try read_param(program, &modes);
+                const param2 = try read_param(program, &modes);
+                if (param1 == 0) {
+                    program.index = try to_ucmdsize(program, param2);
+                }
+            },
+            7 => {
+                if (debug) {
+                    std.debug.print("instruction: {d} {d} {d} {d}\n", .{
+                        instruction_head,
+                        program.mem[program.index],
+                        program.mem[program.index + 1],
+                        program.mem[program.index + 2],
+                    });
+                }
+                const param1 = try read_param(program, &modes);
+                const param2 = try read_param(program, &modes);
+                const param3 = try read_param_for_write(program, &modes);
+                program.mem[param3] = if (param1 < param2) 1 else 0;
+            },
+            8 => {
+                if (debug) {
+                    std.debug.print("instruction: {d} {d} {d} {d}\n", .{
+                        instruction_head,
+                        program.mem[program.index],
+                        program.mem[program.index + 1],
+                        program.mem[program.index + 2],
+                    });
+                }
+                const param1 = try read_param(program, &modes);
+                const param2 = try read_param(program, &modes);
+                const param3 = try read_param_for_write(program, &modes);
+                program.mem[param3] = if (param1 == param2) 1 else 0;
+            },
             99 => {
                 if (debug) {
                     std.debug.print("instruction: {d}\n", .{
@@ -263,7 +319,7 @@ fn test_program(mem: []const icmdsize, index: ucmdsize, state: State) Program {
 
 test "day 2 example 1" {
     var program = test_program(&.{ 1, 0, 0, 0, 99 }, 0, resumable);
-    _ = resume_program(&program);
+    resume_program(&program);
     try std.testing.expectEqualDeep(
         test_program(&.{ 2, 0, 0, 0, 99 }, 5, halted),
         program,
@@ -272,7 +328,7 @@ test "day 2 example 1" {
 
 test "day 2 example 2" {
     var program = test_program(&.{ 2, 3, 0, 3, 99 }, 0, resumable);
-    _ = resume_program(&program);
+    resume_program(&program);
     try std.testing.expectEqualDeep(
         test_program(&.{ 2, 3, 0, 6, 99 }, 5, halted),
         program,
@@ -281,7 +337,7 @@ test "day 2 example 2" {
 
 test "day 2 example 3" {
     var program = test_program(&.{ 2, 4, 4, 5, 99, 0 }, 0, resumable);
-    _ = resume_program(&program);
+    resume_program(&program);
     try std.testing.expectEqualDeep(
         test_program(&.{ 2, 4, 4, 5, 99, 9801 }, 5, halted),
         program,
@@ -290,7 +346,7 @@ test "day 2 example 3" {
 
 test "day 2 example 4" {
     var program = test_program(&.{ 1, 1, 1, 4, 99, 5, 6, 0, 99 }, 0, resumable);
-    _ = resume_program(&program);
+    resume_program(&program);
     try std.testing.expectEqualDeep(
         test_program(&.{ 30, 1, 1, 4, 2, 5, 6, 0, 99 }, 9, halted),
         program,
@@ -351,4 +407,66 @@ test "day 5 part 1" {
             return;
         }
     }
+}
+
+fn test_output_for_input(initial_program: Program, input: icmdsize, expected_output: icmdsize) !void {
+    var program = initial_program;
+    resume_program(&program);
+    provide_input(&program, input);
+    resume_program(&program);
+    try std.testing.expectEqual(take_output(&program), expected_output);
+}
+
+test "day 5 example 2" {
+    const program = test_program(&.{ 3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8 }, 0, resumable);
+    try test_output_for_input(program, 8, 1);
+    try test_output_for_input(program, 9, 0);
+}
+
+test "day 5 example 3" {
+    const program = test_program(&.{ 3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8 }, 0, resumable);
+    try test_output_for_input(program, 7, 1);
+    try test_output_for_input(program, 8, 0);
+}
+
+test "day 5 example 4" {
+    const program = test_program(&.{ 3, 3, 1108, -1, 8, 3, 4, 3, 99 }, 0, resumable);
+    try test_output_for_input(program, 8, 1);
+    try test_output_for_input(program, 9, 0);
+}
+
+test "day 5 example 5" {
+    const program = test_program(&.{ 3, 3, 1107, -1, 8, 3, 4, 3, 99 }, 0, resumable);
+    try test_output_for_input(program, 7, 1);
+    try test_output_for_input(program, 8, 0);
+}
+
+test "day 5 example 6" {
+    const program = test_program(&.{ 3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9 }, 0, resumable);
+    try test_output_for_input(program, 0, 0);
+    try test_output_for_input(program, 4, 1);
+}
+
+test "day 5 example 7" {
+    const program = test_program(&.{ 3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1 }, 0, resumable);
+    try test_output_for_input(program, 0, 0);
+    try test_output_for_input(program, 4, 1);
+}
+
+test "day 5 example 8" {
+    const program = test_program(&.{ 3, 21, 1008, 21, 8, 20, 1005, 20, 22, 107, 8, 21, 20, 1006, 20, 31, 1106, 0, 36, 98, 0, 0, 1002, 21, 125, 20, 4, 20, 1105, 1, 46, 104, 999, 1105, 1, 46, 1101, 1000, 1, 20, 4, 20, 1105, 1, 46, 98, 99 }, 0, resumable);
+    try test_output_for_input(program, 7, 999);
+    try test_output_for_input(program, 8, 1000);
+    try test_output_for_input(program, 9, 1001);
+}
+
+test "day 5 part 2" {
+    const input = try std.fs.cwd().openFile("puzzle-inputs/day5.txt", .{});
+    defer input.close();
+    var program = try load_program(input);
+    resume_program(&program);
+    provide_input(&program, 5);
+    resume_program(&program);
+    const output = take_output(&program);
+    try std.testing.expectEqual(output, 42);
 }
